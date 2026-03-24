@@ -11,20 +11,7 @@ document.addEventListener("DOMContentLoaded", function () {
         ease: "power3.out"
     });
 
-    // 1. Auto-scroll from landing page to wipe section
-    gsap.to(window, {
-        scrollTo: ".scroll-container",
-        duration: 2.5,
-        delay: 1.5,
-        ease: "power2.inOut",
-        onComplete: () => {
-            // Start the slow continuous auto-scroll behavior
-            startAutoScroll();
-        }
-    });
-
     const sections = gsap.utils.toArray(".comparisonSection");
-    const container = document.querySelector(".scroll-container");
 
     // Set initial states
     sections.forEach((section, i) => {
@@ -32,14 +19,13 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 
     // 2. Wipe Timeline - linked to ScrollTrigger for manual "friendly" scroll control
-    // scrub: 1 allows the user to scroll back and forth to see sections again
     const wipeTl = gsap.timeline({
         scrollTrigger: {
             trigger: ".scroll-container",
             pin: true,
             start: "top top",
-            end: "+=" + (sections.length * 250) + "%", // Longer scroll area for slower feel
-            scrub: 1.5, // Smooth scrubbing
+            end: "+=" + (sections.length * 250) + "%",
+            scrub: 1.5,
             pinSpacing: true,
             id: "wipe-trigger"
         }
@@ -55,17 +41,18 @@ document.addEventListener("DOMContentLoaded", function () {
         const containerStart = isRightToLeft ? 100 : -100;
         const imageStart = isRightToLeft ? -100 : 100;
 
-        // Transitions - slightly increased duration for "premium" feel
         wipeTl.set(section, { autoAlpha: 1 })
             .fromTo(section, { xPercent: containerStart }, { xPercent: 0, duration: 3 })
             .fromTo(img, { xPercent: imageStart }, { xPercent: 0, duration: 3 }, "<")
-            .fromTo(text, { xPercent: imageStart, opacity: 0 }, { xPercent: 0, opacity: 1, duration: 3 }, "<")
-            .to({}, { duration: 1.5 }); // Hold section view
+            .fromTo(text, { xPercent: imageStart }, { xPercent: 0, duration: 3 }, "<")
+            .to({}, { duration: 1.5 });
     });
 
     // 3. Continuous Auto-Scroll Logic with Interaction Handling
     let autoScrollTween;
     let resumeTimeout;
+    let initialScrollTween;
+    let isYoyoBack = false;
 
     function startAutoScroll() {
         const st = ScrollTrigger.getById("wipe-trigger");
@@ -73,62 +60,101 @@ document.addEventListener("DOMContentLoaded", function () {
 
         const startPos = st.start;
         const endPos = st.end;
+        const currentPos = window.scrollY;
 
-        // Animate the scroll position automatically (faster speed)
-        autoScrollTween = gsap.fromTo(window, 
-            { scrollTo: startPos },
-            {
-                scrollTo: endPos,
-                duration: sections.length * 4.5, // Even faster auto-scroll
-                ease: "none",
-                repeat: -1,
-                yoyo: true,
-                paused: false,
-                overwrite: "auto"
+        // If very close to end, switch direction
+        if (Math.abs(currentPos - endPos) < 10) isYoyoBack = true;
+        if (Math.abs(currentPos - startPos) < 10) isYoyoBack = false;
+
+        const target = isYoyoBack ? startPos : endPos;
+        const distanceLeft = Math.abs(currentPos - target);
+        const totalDistance = Math.abs(endPos - startPos);
+        const baseDuration = sections.length * 6; // Harmonized Speed
+
+        const duration = (distanceLeft / totalDistance) * baseDuration;
+
+        if (autoScrollTween) autoScrollTween.kill();
+
+        autoScrollTween = gsap.to(window, {
+            scrollTo: target,
+            duration: Math.max(duration, 0.5),
+            ease: "none",
+            onComplete: () => {
+                isYoyoBack = !isYoyoBack;
+                startAutoScroll();
             }
-        );
-
-        // Interaction listeners
-        window.addEventListener("wheel", handleUserInteraction);
-        window.addEventListener("touchstart", handleUserInteraction);
-        
-        // Mouse leave screen/window behavior
-        document.addEventListener("mouseleave", () => {
-             // If mouse leaves the browser window, ensure it starts after a delay
-             resumeAutoScroll(1000);
         });
+
+        // Ensure global listeners are active
+        if (!window.hasAutoScrollListeners) {
+            window.addEventListener("wheel", handleUserInteraction);
+            window.addEventListener("touchstart", handleUserInteraction);
+            document.addEventListener("mouseleave", () => resumeAutoScroll(1000));
+            window.hasAutoScrollListeners = true;
+        }
     }
+
+    // Change Resume Check logic: Resume only if mouse is NOT in the window
+    let isMouseInWindow = false;
 
     function handleUserInteraction() {
         if (autoScrollTween) {
             autoScrollTween.pause();
-            resumeAutoScroll(1000); // Resume after 1 second of no manual interaction
+            clearTimeout(resumeTimeout);
+        }
+        if (initialScrollTween) {
+            initialScrollTween.kill();
         }
     }
 
     function resumeAutoScroll(delay) {
         clearTimeout(resumeTimeout);
         resumeTimeout = setTimeout(() => {
-            if (autoScrollTween && !isMouseOverContainer()) {
-                autoScrollTween.play();
+            // Only resume if mouse is actually outside the browser window
+            if (!isMouseInWindow) {
+                startAutoScroll();
             }
         }, delay);
     }
 
-    function isMouseOverContainer() {
-        // Simple flag check or just rely on mouseenter/mouseleave
-        return container.matches(':hover');
-    }
+    // New Global Window Listeners for Hover-Stop
+    document.addEventListener("mouseenter", () => {
+        isMouseInWindow = true;
+        handleUserInteraction();
+    });
 
-    // Hover logic for the scroll-container
-    container.addEventListener("mouseenter", () => {
-        if (autoScrollTween) {
-            autoScrollTween.pause();
-            clearTimeout(resumeTimeout);
+    document.addEventListener("mouseleave", () => {
+        isMouseInWindow = false;
+        resumeAutoScroll(1000); 
+    });
+
+    document.addEventListener("mousemove", () => {
+        // Any movement within the screen also ensures it's stopped/pushed back
+        isMouseInWindow = true;
+        handleUserInteraction();
+    });
+
+    // Handle touch separately to allow auto-scroll on touch devices once interaction stops
+    document.addEventListener("touchstart", () => {
+        handleUserInteraction();
+        // Touch doesn't mean mouse is in window
+        setTimeout(() => resumeAutoScroll(3000), 100); 
+    });
+
+    // Initial scroll from landing (Ultra Smooth Transition)
+    initialScrollTween = gsap.to(window, {
+        scrollTo: { y: ".scroll-container", autoKill: true },
+        duration: 4, // More deliberate and smooth
+        delay: 3,    // Allow user to read the hero section first
+        ease: "power2.inOut",
+        onComplete: () => {
+            if (!isMouseInWindow) {
+                startAutoScroll();
+            }
         }
     });
 
-    container.addEventListener("mouseleave", () => {
-        resumeAutoScroll(1000); // Resume 1 second after leaving the container
-    });
+
+
+
 });

@@ -23,7 +23,8 @@ body {
 
 h1,
 h2 {
-    font-weight: 400;
+    font-size: 2rem;
+    font-weight: 600;
     max-width: none;
     text-transform: uppercase;
 }
@@ -63,7 +64,8 @@ a.explore-btn {
     letter-spacing: 2px;
     transition: 0.3s;
     background: rgba(0, 0, 0, 0.5);
-    /* Added check for readability */
+    border-radius: 8px;
+    /* Curved edges as requested */
 }
 
 a.explore-btn:hover {
@@ -351,20 +353,31 @@ a.explore-btn:hover {
 
 .text-content {
     text-align: center;
-    background: rgba(0, 0, 0, 0.4);
-    /* Subtle backdrop */
-    padding: 2.5rem;
-    backdrop-filter: blur(8px);
-    border-radius: 15px;
+    background: rgba(0, 0, 0, 0.75);
+    padding: 2.0rem;
+    margin: 1em;
+    backdrop-filter: blur(12px);
+    border-radius: 20px;
+    /* Slightly more curved for the premium look */
     pointer-events: auto;
     transition: transform 0.3s ease, background 0.3s ease, box-shadow 0.3s ease;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+
+    /* Fixed Size Implementation */
+    width: 480px;
+    height: 320px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
 }
 
 .scroll-container:hover .text-content {
-    background: rgba(0, 0, 0, 0.6);
-    transform: scale(1.05);
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+    background: rgba(0, 0, 0, 0.95);
+    /* Deepens on hover */
+    transform: scale(1.02);
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.6);
     border-color: var(--accent-color);
 }
 
