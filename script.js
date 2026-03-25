@@ -25,9 +25,15 @@ document.addEventListener("DOMContentLoaded", function () {
             pin: true,
             start: "top top",
             end: "+=" + (sections.length * 250) + "%",
-            scrub: 1.5,
+            scrub: 1, // Faster response for "neat" feel
             pinSpacing: true,
-            id: "wipe-trigger"
+            id: "wipe-trigger",
+            snap: {
+                snapTo: 1 / (sections.length - 1),
+                duration: { min: 0.2, max: 0.6 },
+                delay: 0.1,
+                ease: "power1.inOut"
+            }
         }
     });
 
@@ -58,18 +64,18 @@ document.addEventListener("DOMContentLoaded", function () {
         const st = ScrollTrigger.getById("wipe-trigger");
         if (!st) return;
 
-        const startPos = st.start;
-        const endPos = st.end;
+        const startPos = 0; // Starts from intro page
+        const endPos = ScrollTrigger.maxScroll(window); // Ends at footer
         const currentPos = window.scrollY;
 
         // If very close to end, switch direction
-        if (Math.abs(currentPos - endPos) < 10) isYoyoBack = true;
-        if (Math.abs(currentPos - startPos) < 10) isYoyoBack = false;
+        if (Math.abs(currentPos - endPos) < 15) isYoyoBack = true;
+        if (Math.abs(currentPos - startPos) < 15) isYoyoBack = false;
 
         const target = isYoyoBack ? startPos : endPos;
         const distanceLeft = Math.abs(currentPos - target);
         const totalDistance = Math.abs(endPos - startPos);
-        const baseDuration = sections.length * 6; // Harmonized Speed
+        const baseDuration = (sections.length + 2) * 7; // Adjusted for full page length
 
         const duration = (distanceLeft / totalDistance) * baseDuration;
 
@@ -81,7 +87,8 @@ document.addEventListener("DOMContentLoaded", function () {
             ease: "none",
             onComplete: () => {
                 isYoyoBack = !isYoyoBack;
-                startAutoScroll();
+                // Hold for 2 seconds at the ends (especially footer)
+                gsap.delayedCall(2, startAutoScroll);
             }
         });
 
@@ -102,6 +109,9 @@ document.addEventListener("DOMContentLoaded", function () {
             autoScrollTween.pause();
             clearTimeout(resumeTimeout);
         }
+        // Kill any pending auto-scroll start from a "hold" delay
+        gsap.killTweensOf(startAutoScroll);
+
         if (initialScrollTween) {
             initialScrollTween.kill();
         }
@@ -125,7 +135,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     document.addEventListener("mouseleave", () => {
         isMouseInWindow = false;
-        resumeAutoScroll(1000); 
+        resumeAutoScroll(1000);
     });
 
     document.addEventListener("mousemove", () => {
@@ -138,7 +148,7 @@ document.addEventListener("DOMContentLoaded", function () {
     document.addEventListener("touchstart", () => {
         handleUserInteraction();
         // Touch doesn't mean mouse is in window
-        setTimeout(() => resumeAutoScroll(3000), 100); 
+        setTimeout(() => resumeAutoScroll(2500), 100);
     });
 
     // Initial scroll from landing (Ultra Smooth Transition)
@@ -148,13 +158,11 @@ document.addEventListener("DOMContentLoaded", function () {
         delay: 3,    // Allow user to read the hero section first
         ease: "power2.inOut",
         onComplete: () => {
+            ScrollTrigger.refresh(); // Ensure footer position is recalculated
             if (!isMouseInWindow) {
                 startAutoScroll();
             }
         }
     });
-
-
-
 
 });
